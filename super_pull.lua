@@ -100,7 +100,7 @@ y = y + 38
 
 btn("Copy loadstring", y, Color3.fromRGB(60, 60, 60), function()
     if setclipboard then
-        setclipboard('loadstring(game:HttpGet("https://raw.githubusercontent.com/snqw/superpull/main/super_pull.lua"))()')
+        setclipboard('loadstring(game:HttpGet("https://raw.githubusercontent.com/snqw293-eng/superpull/main/super_pull.lua"))()')
     end
 end)
 
