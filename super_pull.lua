@@ -1,260 +1,201 @@
--- snqw .0gh — Game study + auto mod
--- Scans game modules, finds movement function, patches it
-
 local UIS = game:GetService("UserInputService")
 local RS = game:GetService("RunService")
+local TS = game:GetService("TweenService")
 local plr = game:GetService("Players").LocalPlayer
 local mouse = plr:GetMouse()
 
-local mult = 100
-local methods = {}
-local working = ""
+local pullMult = 100
+local speedMult = 5
+local pullOn = true
+local speedOn = true
+local curTab = 1
 
--- ── Method 1: getrawmetatable hook ────────────────────────
-methods.hook = pcall(function()
+-- 40Hz
+pcall(function() settings().Physics.PhysicsEnvironmentalThrottle = Enum.EnviromentalPhysicsThrottle.Disabled end)
+
+-- Hook
+local hookOK = pcall(function()
     local mt = getrawmetatable(game)
     local old = mt.__namecall
     setreadonly(mt, false)
     mt.__namecall = function(...)
         local a = {...}
-        if getnamecallmethod() == "GetMouseDelta" and a[1] == UIS then return old(...) * mult end
+        if pullOn and getnamecallmethod() == "GetMouseDelta" and a[1] == UIS then return old(...) * pullMult end
         return old(...)
     end
     setreadonly(mt, true)
 end)
 
--- ── Method 2: Scan game modules for movement function ──────
-methods.scan = false
-local patched = nil
-
-local scanSuccess = pcall(function()
-    local gc = getgc()
-    for _, v in ipairs(gc) do
-        if type(v) == "function" then
-            local env = getfenv(v)
-            if env and env.script and env.script.Parent then
-                local upvals = {getupvalues(v)}
-                for _, uv in ipairs(upvals) do
-                    if type(uv) == "number" and uv > 0 then
-                        local consts = {getconstants(v)}
-                        for _, c in ipairs(consts) do
-                            if type(c) == "string" and (c:lower():find("delta") or c:lower():find("mouse") or c:lower():find("drag")) then
-                                -- Found a function using mouse delta — patch it
-                                local oldFn = v
-                                local sig = getinfo(v).source or "?"
-                                if not methods.scan then
-                                    methods.scan = sig
-                                end
-                                local upIdx = nil
-                                for ui, uv2 in ipairs(upvals) do
-                                    if type(uv2) == "number" and uv2 > 0 then
-                                        upIdx = ui
-                                        break
-                                    end
-                                end
-                                if upIdx then
-                                    -- Found multiplier value — patch it
-                                    patched = {func = oldFn, upval = upIdx, oldVal = upvals[upIdx], sig = sig}
-                                end
-                                break
-                            end
-                        end
-                    end
-                end
-            end
-        end
-    end
-end)
-
--- ── Method 3: Fallback — velocity boost ────────────────────
-local speedMult = 5
-local speedOn = true
-local dragPower = 0
-local lastPos = Vector2.new()
-
-mouse.Move:Connect(function()
-    if speedOn and UIS:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) then
-        local cur = Vector2.new(mouse.X, mouse.Y)
-        if lastPos.Magnitude > 0 then
-            dragPower = math.min(dragPower + (cur - lastPos).Magnitude * 0.3, 150)
-        end
-        lastPos = cur
-    end
-end)
-
-UIS.InputEnded:Connect(function(inp)
-    if inp.UserInputType == Enum.UserInputType.MouseButton1 then lastPos = Vector2.new(); dragPower = 0 end
-end)
-
--- Determine best method
-if methods.hook then
-    working = "Hook (100x)"
-elseif methods.scan then
-    working = "Scan patched: " .. tostring(methods.scan):sub(1, 40)
-else
-    working = "Velocity boost"
-end
-
+-- Speed
 RS.RenderStepped:Connect(function()
-    if not speedOn or not plr.Character or not plr.Character:FindFirstChild("HumanoidRootPart") then return end
-    local hrp = plr.Character.HumanoidRootPart
-    local dt = RS:GetSteppedDelta()
-    local dir = hrp.CFrame.LookVector * Vector3.new(1, 0, 1)
-    if dir.Magnitude > 0 then
-        hrp.Velocity = hrp.Velocity + dir * speedMult * 60 * dt
-    end
-    if dragPower > 1 then
-        hrp.Velocity = hrp.Velocity + hrp.CFrame.LookVector * dragPower * 200 * dt
-        dragPower = dragPower * 0.92
+    if speedOn and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+        local hrp = plr.Character.HumanoidRootPart
+        local dir = hrp.CFrame.LookVector * Vector3.new(1, 0, 1)
+        if dir.Magnitude > 0 then hrp.Velocity = hrp.Velocity + dir * speedMult * 60 * RS:GetSteppedDelta() end
     end
 end)
 
--- ── BEAUTIFUL UI ──────────────────────────────────────────
+-- UI
 local gui = Instance.new("ScreenGui")
-gui.Name = "SnqwHub"
+gui.Name = "Snqw"
 gui.ResetOnSpawn = false
 gui.Parent = plr:WaitForChild("PlayerGui")
 
-local bg = Instance.new("ImageLabel")
-bg.Size = UDim2.new(0, 380, 0, 440)
-bg.Position = UDim2.new(0.5, -190, 0.5, -220)
-bg.BackgroundColor3 = Color3.fromRGB(8, 8, 12)
-bg.BorderSizePixel = 0
+local bg = Instance.new("Frame")
+bg.Size = UDim2.new(0, 340, 0, 360)
+bg.Position = UDim2.new(0.5, -170, 0.5, -180)
+bg.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+bg.BorderSizePixel = 2
+bg.BorderColor3 = Color3.fromRGB(255, 0, 0)
 bg.Active = true
 bg.Draggable = true
-bg.ClipsDescendants = true
 bg.Parent = gui
-local bgc = Instance.new("UICorner"); bgc.CornerRadius = UDim.new(0, 12); bgc.Parent = bg
-local bgst = Instance.new("UIStroke"); bgst.Color = Color3.fromRGB(200, 0, 0); bgst.Thickness = 1.5; bgst.Parent = bg
-local bgsh = Instance.new("ImageLabel"); bgsh.Size = UDim2.new(1, 20, 1, 20); bgsh.Position = UDim2.new(0, -10, 0, -10); bgsh.BackgroundColor3 = Color3.fromRGB(0,0,0); bgsh.BackgroundTransparency = 0.5; bgsh.ZIndex = -1; bgsh.Parent = bg; Instance.new("UICorner", bgsh).CornerRadius = UDim.new(0, 16)
 
--- Accent line
-local line = Instance.new("Frame")
-line.Size = UDim2.new(1, 0, 0, 3)
-line.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
-line.BorderSizePixel = 0
-line.Parent = bg
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 0, 36)
+title.BackgroundColor3 = Color3.fromRGB(5, 5, 5)
+title.BorderSizePixel = 0
+title.Text = "SNQW .0GH"
+title.TextColor3 = Color3.fromRGB(255, 30, 30)
+title.TextSize = 26
+title.Font = Enum.Font.FredokaOne
+title.Parent = bg
 
--- Header
-local logo = Instance.new("TextLabel")
-logo.Size = UDim2.new(1, 0, 0, 36)
-logo.Position = UDim2.new(0, 0, 0, 8)
-logo.BackgroundTransparency = 1
-logo.Text = "SNQW .0GH"
-logo.TextColor3 = Color3.fromRGB(255, 50, 50)
-logo.TextSize = 28
-logo.Font = Enum.Font.FredokaOne
-logo.Parent = bg
+local hookStat = Instance.new("TextLabel")
+hookStat.Size = UDim2.new(1, -10, 0, 14)
+hookStat.Position = UDim2.new(0, 5, 0, 36)
+hookStat.BackgroundTransparency = 1
+hookStat.Text = "[" .. (hookOK and "PULL:OK" or "PULL:FAIL") .. "] [SPEED:ON] [40Hz:ON]"
+hookStat.TextColor3 = hookOK and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 100, 0)
+hookStat.TextSize = 11
+hookStat.Font = Enum.Font.GothamBold
+hookStat.TextXAlignment = Enum.TextXAlignment.Left
+hookStat.Parent = bg
 
-local status = Instance.new("TextLabel")
-status.Size = UDim2.new(1, -20, 0, 16)
-status.Position = UDim2.new(0, 10, 0, 46)
-status.BackgroundTransparency = 1
-status.Text = "Method: " .. working .. " | Speed: " .. speedMult .. "x"
-status.TextColor3 = Color3.fromRGB(160, 160, 160)
-status.TextSize = 13
-status.Font = Enum.Font.Gotham
-status.TextXAlignment = Enum.TextXAlignment.Left
-status.Parent = bg
+-- Tabs
+local tabY = 54
+local tabH = 28
+local tabNames = {"PULL", "SPEED", "MISC"}
+local tabBtns = {}
 
--- Module info
-local info = Instance.new("TextLabel")
-info.Size = UDim2.new(1, -20, 0, 14)
-info.Position = UDim2.new(0, 10, 0, 64)
-info.BackgroundTransparency = 1
-info.Text = methods.scan and ("Found: " .. tostring(methods.scan):sub(1, 50)) or "No game modules modifiable"
-info.TextColor3 = Color3.fromRGB(100, 100, 100)
-info.TextSize = 11
-info.Font = Enum.Font.Gotham
-info.TextXAlignment = Enum.TextXAlignment.Left
-info.Parent = bg
+for i, name in ipairs(tabNames) do
+    local tb = Instance.new("TextButton")
+    tb.Size = UDim2.new(0.33, -2, 0, tabH)
+    tb.Position = UDim2.new((i-1) * 0.33, 1, 0, tabY)
+    tb.BackgroundColor3 = i == 1 and Color3.fromRGB(180, 0, 0) or Color3.fromRGB(15, 15, 15)
+    tb.BorderSizePixel = 0
+    tb.Text = name
+    tb.TextColor3 = Color3.fromRGB(255, 255, 255)
+    tb.TextSize = 13
+    tb.Font = Enum.Font.GothamBold
+    tb.Parent = bg
+    tb.MouseButton1Click:Connect(function()
+        curTab = i
+        for j, b in ipairs(tabBtns) do
+            TS:Create(b, TweenInfo.new(0.15), {BackgroundColor3 = j == i and Color3.fromRGB(180, 0, 0) or Color3.fromRGB(15, 15, 15)}):Play()
+        end
+        for j, c in ipairs(contents) do c.Visible = j == i end
+    end)
+    tabBtns[i] = tb
+end
 
--- Buttons
-local btnY = 88
-local btnGap = 40
+-- Content panels
+local contents = {}
+local conY = tabY + tabH + 4
 
-local function makeBtn(txt, col, cb, wide)
+for i = 1, 3 do
+    local c = Instance.new("Frame")
+    c.Size = UDim2.new(1, -4, 1, -(conY + 24))
+    c.Position = UDim2.new(0, 2, 0, conY)
+    c.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    c.BorderSizePixel = 0
+    c.Visible = i == 1
+    c.Parent = bg
+    contents[i] = c
+end
+
+function cbtn(con, txt, y, col, cb)
     local b = Instance.new("TextButton")
-    local w = wide and 340 or 160
-    local col2 = (btnY % 80 < 40) and 10 or 190
-    b.Size = UDim2.new(0, w, 0, 32)
-    b.Position = UDim2.new(0, btnY % 80 < 40 and 20 or 200, 0, btnY)
-    b.BackgroundColor3 = col or Color3.fromRGB(20, 20, 25)
-    b.BorderSizePixel = 0
+    b.Size = UDim2.new(0.9, 0, 0, 30)
+    b.Position = UDim2.new(0.05, 0, 0, y)
+    b.BackgroundColor3 = col or Color3.fromRGB(20, 20, 20)
+    b.BorderSizePixel = 1
+    b.BorderColor3 = Color3.fromRGB(60, 60, 60)
     b.Text = txt
     b.TextColor3 = Color3.fromRGB(255, 255, 255)
     b.TextSize = 13
     b.Font = Enum.Font.GothamBold
-    b.Parent = bg
-    local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, 6); c.Parent = b
-    
-    -- Hover glow
-    b.MouseEnter:Connect(function()
-        game:GetService("TweenService"):Create(b, TweenInfo.new(0.15), {BackgroundColor3 = col and col:Lerp(Color3.fromRGB(255,255,255), 0.15) or Color3.fromRGB(45, 45, 55)}):Play()
-    end)
-    b.MouseLeave:Connect(function()
-        game:GetService("TweenService"):Create(b, TweenInfo.new(0.2), {BackgroundColor3 = col or Color3.fromRGB(20, 20, 25)}):Play()
-    end)
+    b.Parent = con
+    local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, 4); c.Parent = b
+    b.MouseEnter:Connect(function() TS:Create(b, TweenInfo.new(0.1), {BackgroundColor3 = col and col:Lerp(Color3.fromRGB(255,255,255), 0.2) or Color3.fromRGB(40,40,40)}):Play() end)
+    b.MouseLeave:Connect(function() TS:Create(b, TweenInfo.new(0.15), {BackgroundColor3 = col or Color3.fromRGB(20,20,20)}):Play() end)
     b.MouseButton1Click:Connect(cb)
-    if wide and (btnY % 80 >= 40) then btnY = btnY + 40; end
-    if not wide and (btnY % 80 >= 40) then btnY = btnY + 40; end
-    return b
 end
 
-makeBtn("Toggle Speed [" .. (speedOn and "ON" or "OFF") .. "]", Color3.fromRGB(25, 25, 80), function()
-    speedOn = not speedOn; status.Text = "Method: " .. working .. " | Speed: " .. (speedOn and speedMult .. "x" or "OFF")
+-- Tab 1: Pull
+cbtn(contents[1], "Pull: " .. (pullOn and "ON" or "OFF"), 6, Color3.fromRGB(25, 25, 120), function()
+    pullOn = not pullOn
 end)
-makeBtn("Speed +5", Color3.fromRGB(20, 60, 20), function()
-    speedMult = speedMult + 5; status.Text = "Speed: " .. speedMult .. "x"
+cbtn(contents[1], "Pull Multiplier: " .. pullMult .. "x", 40, Color3.fromRGB(20, 20, 80), function()
+    pullMult = pullMult + 50
 end)
-makeBtn("Pull Mult: " .. mult, Color3.fromRGB(60, 20, 20), function()
-    mult = mult + 50; status.Text = "Pull: " .. mult .. "x"
+cbtn(contents[1], "Set 500x", 74, Color3.fromRGB(60, 10, 10), function()
+    pullMult = 500; pullOn = true
 end)
-makeBtn("Rescan Game", Color3.fromRGB(40, 30, 15), function()
-    info.Text = "Rescanning..."
-    local ok = pcall(function()
+cbtn(contents[1], "Hook Status: " .. (hookOK and "WORKING" or "FAILED"), 108, hookOK and Color3.fromRGB(10, 60, 10) or Color3.fromRGB(60, 10, 10), function() end)
+
+-- Tab 2: Speed
+cbtn(contents[2], "Speed: " .. (speedOn and "ON" or "OFF"), 6, Color3.fromRGB(25, 100, 25), function()
+    speedOn = not speedOn
+end)
+cbtn(contents[2], "Speed: " .. speedMult .. "x", 40, Color3.fromRGB(20, 70, 20), function()
+    speedMult = speedMult + 5
+end)
+cbtn(contents[2], "MAX (20x)", 74, Color3.fromRGB(150, 0, 0), function()
+    speedMult = 20; speedOn = true; pullMult = 500; pullOn = true
+end)
+cbtn(contents[2], "Double Speed", 108, Color3.fromRGB(40, 60, 15), function()
+    speedMult = speedMult * 2
+end)
+
+-- Tab 3: Misc
+cbtn(contents[3], "Copy Loader", 6, Color3.fromRGB(30, 30, 30), function()
+    if setclipboard then setclipboard('loadstring(game:HttpGet("https://raw.githubusercontent.com/snqw293-eng/superpull/main/super_pull.lua"))()') end
+end)
+cbtn(contents[3], "Rescan Game", 40, Color3.fromRGB(40, 30, 15), function()
+    local found = false
+    pcall(function()
         for _, v in ipairs(getgc()) do
             if type(v) == "function" then
                 local c = {getconstants(v)}
                 for _, cc in ipairs(c) do
-                    if type(cc) == "string" and (cc:lower():find("delta") or cc:lower():find("drag")) then
-                        info.Text = "Found: " .. (getinfo(v).source or "?"):sub(1, 40)
-                        return
+                    if type(cc) == "string" and (cc:lower():find("delta") or cc:lower():find("drag") or cc:lower():find("mouse")) then
+                        found = getinfo(v).source or "?"
+                        break
                     end
                 end
             end
+            if found then break end
         end
     end)
-    if not ok then info.Text = "getgc not available in this runner" end
 end)
-
-btnY = btnY + 40
-makeBtn("MAX (50x speed / 500x pull)", Color3.fromRGB(150, 0, 0), function()
-    speedMult = 50; mult = 500; speedOn = true; status.Text = "MAX: Speed 50x / Pull 500x"
-end, true)
-
-btnY = btnY + 40
-makeBtn("Copy Loader", Color3.fromRGB(30, 30, 30), function()
-    if setclipboard then setclipboard('loadstring(game:HttpGet("https://raw.githubusercontent.com/snqw293-eng/superpull/main/super_pull.lua"))()') end
-end, true)
-
-makeBtn("Quit", Color3.fromRGB(80, 10, 10), function()
-    speedOn = false; gui:Destroy()
-end, true)
+cbtn(contents[3], "Quit", 74, Color3.fromRGB(100, 0, 0), function()
+    speedOn = false; pullOn = false; gui:Destroy()
+end)
 
 -- Footer
 local ft = Instance.new("TextLabel")
-ft.Size = UDim2.new(1, 0, 0, 18)
-ft.Position = UDim2.new(0, 0, 1, -18)
+ft.Size = UDim2.new(1, 0, 0, 16)
+ft.Position = UDim2.new(0, 0, 1, -16)
 ft.BackgroundTransparency = 1
 ft.Text = "snqw .0gh on discord"
-ft.TextColor3 = Color3.fromRGB(70, 70, 70)
-ft.TextSize = 12
+ft.TextColor3 = Color3.fromRGB(80, 80, 80)
+ft.TextSize = 11
 ft.Font = Enum.Font.Gotham
 ft.Parent = bg
 
--- Animate in
-bg.Position = UDim2.new(0.5, -190, 0.45, -220)
-game:GetService("TweenService"):Create(bg, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Position = UDim2.new(0.5, -190, 0.5, -220)}):Play()
+-- Animate
+bg.Position = UDim2.new(0.5, -170, 0.55, -180)
+TS:Create(bg, TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Position = UDim2.new(0.5, -170, 0.5, -180)}):Play()
 
-print("snqw .0gh loaded — Method: " .. working)
+print("snqw loaded")
