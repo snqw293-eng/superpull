@@ -161,7 +161,7 @@ upHz()
 local gui = Instance.new("ScreenGui"); gui.Name = "Snqw"; gui.ResetOnSpawn = false; gui.Parent = plr:WaitForChild("PlayerGui")
 local bg = Instance.new("Frame"); bg.Size = UDim2.new(0, 480, 0, 440); bg.Position = UDim2.new(0.5, -240, 0.5, -220); bg.BackgroundColor3 = Color3.fromRGB(5,5,5); bg.BorderSizePixel = 0; bg.Active = true; bg.Draggable = true; bg.Parent = gui
 
-local t = Instance.new("TextLabel", bg); t.Size = UDim2.new(1,0,0,34); t.BackgroundColor3 = Color3.fromRGB(8,8,8); t.BorderSizePixel = 0; t.Text = "SNQW .0GH"; t.TextColor3 = Color3.fromRGB(180,20,20); t.TextSize = 22; t.Font = Enum.Font.FredokaOne
+local t = Instance.new("TextLabel", bg); t.Size = UDim2.new(1,0,0,34); t.BackgroundColor3 = Color3.fromRGB(8,8,8); t.BorderSizePixel = 0; t.Text = "SNQW .0GH"; t.TextColor3 = Color3.fromRGB(180,180,180); t.TextSize = 22; t.Font = Enum.Font.FredokaOne
 
 local st = Instance.new("TextLabel", bg); st.Size = UDim2.new(1,-10,0,24); st.Position = UDim2.new(0,5,0,34); st.BackgroundTransparency = 1; st.Text = ""; st.TextColor3 = Color3.fromRGB(0,200,0); st.TextSize = 10; st.Font = Enum.Font.GothamBold; st.TextXAlignment = Enum.TextXAlignment.Left; st.TextWrapped = true
 
@@ -178,8 +178,8 @@ local contBg = Instance.new("Frame", bg); contBg.Size = UDim2.new(1,-sideW-2, 1,
 
 local tabNames = {"PULL","SPEED","HZ","SCAN"}
 for i, name in ipairs(tabNames) do
-    local tb = Instance.new("TextButton", side); tb.Size = UDim2.new(1,-4,0,38); tb.Position = UDim2.new(0,2,0,(i-1)*42+2); tb.BackgroundColor3 = i==1 and Color3.fromRGB(20,20,20) or Color3.fromRGB(10,10,10); tb.BorderSizePixel = 0; tb.Text = name; tb.TextColor3 = i==1 and Color3.fromRGB(200,25,25) or Color3.fromRGB(90,90,90); tb.TextSize = 12; tb.Font = Enum.Font.GothamBold
-    tb.MouseButton1Click:Connect(function() curTab=i; for j,b in ipairs(tabBtns) do b.BackgroundColor3=j==i and Color3.fromRGB(20,20,20) or Color3.fromRGB(10,10,10); b.TextColor3=j==i and Color3.fromRGB(200,25,25) or Color3.fromRGB(90,90,90) end; for j,c in ipairs(contents) do c.Visible=j==i end end)
+    local tb = Instance.new("TextButton", side); tb.Size = UDim2.new(1,-4,0,38); tb.Position = UDim2.new(0,2,0,(i-1)*42+2); tb.BackgroundColor3 = i==1 and Color3.fromRGB(20,20,20) or Color3.fromRGB(10,10,10); tb.BorderSizePixel = 0; tb.Text = name; tb.TextColor3 = i==1 and Color3.fromRGB(200,200,200) or Color3.fromRGB(90,90,90); tb.TextSize = 12; tb.Font = Enum.Font.GothamBold
+    tb.MouseButton1Click:Connect(function() curTab=i; for j,b in ipairs(tabBtns) do b.BackgroundColor3=j==i and Color3.fromRGB(20,20,20) or Color3.fromRGB(10,10,10); b.TextColor3=j==i and Color3.fromRGB(200,200,200) or Color3.fromRGB(90,90,90) end; for j,c in ipairs(contents) do c.Visible=j==i end end)
     tabBtns[i]=tb
     local c = Instance.new("Frame", contBg); c.Size = UDim2.new(1,-4,1,-4); c.Position = UDim2.new(0,2,0,2); c.BackgroundColor3 = Color3.fromRGB(5,5,5); c.BorderSizePixel = 0; c.Visible = i==1; contents[i]=c
 end
@@ -194,18 +194,46 @@ end
 -- PULL
 cbtn(contents[1], "Pull " .. (pullOn and "ON" or "OFF"), 4, Color3.fromRGB(18,18,40), function() pullOn=not pullOn; upSt() end)
 cbtn(contents[1], "Pull x" .. pullMult .. " (+500)", 38, Color3.fromRGB(15,15,35), function() pullMult=pullMult+500; upSt() end)
-cbtn(contents[1], "Set 5000x", 72, Color3.fromRGB(35,10,10), function() pullMult=5000; pullOn=true; upSt() end)
-cbtn(contents[1], "SET 50000x", 106, Color3.fromRGB(50,5,5), function() pullMult=50000; pullOn=true; upSt() end)
+cbtn(contents[1], "Set 5000x", 72, Color3.fromRGB(20,20,20), function() pullMult=5000; pullOn=true; upSt() end)
+cbtn(contents[1], "SET 50000x", 106, Color3.fromRGB(25,25,25), function() pullMult=50000; pullOn=true; upSt() end)
 cbtn(contents[1], "Prediction " .. (predOn and "ON" or "OFF"), 140, Color3.fromRGB(18,18,18), function() predOn=not predOn; upSt() end)
 cbtn(contents[1], "Pred x" .. predInt .. " (+5)", 174, Color3.fromRGB(14,14,30), function() predInt=predInt+5; upSt() end)
-cbtn(contents[1], "Hook: " .. hookMethod, 208, Color3.fromRGB(12,12,12), function() upSt() end)
+cbtn(contents[1], "Inject Hook", 208, Color3.fromRGB(20,20,20), function()
+    hookOK = false; hookMethod = "none"
+    pcall(function()
+        local mt = getrawmetatable(game)
+        local old = mt.__namecall
+        setreadonly(mt, false)
+        mt.__namecall = function(...)
+            local a = {...}
+            if pullOn and getnamecallmethod() == "GetMouseDelta" and a[1] == UIS then
+                hookOK = true; hookMethod = "namecall"
+                return old(...) * pullMult
+            end
+            return old(...)
+        end
+        setreadonly(mt, true)
+    end)
+    if not hookOK then
+        pcall(function()
+            local oldGMD = UIS.GetMouseDelta
+            if hookfunction then
+                hookfunction(oldGMD, function(self)
+                    if pullOn then hookOK = true; hookMethod = "hookfunction"; return oldGMD(self) * pullMult end
+                    return oldGMD(self)
+                end)
+            end
+        end)
+    end
+    upSt()
+end)
 
 -- SPEED
 cbtn(contents[2], "Speed " .. (speedOn and "ON" or "OFF"), 4, Color3.fromRGB(15,35,15), function() speedOn=not speedOn; upSt() end)
 cbtn(contents[2], "Speed +10", 38, Color3.fromRGB(12,30,12), function() speedMult=speedMult+10; upSt() end)
 cbtn(contents[2], "Speed x2", 72, Color3.fromRGB(20,30,12), function() speedMult=speedMult*2; upSt() end)
-cbtn(contents[2], "SPEED 500x", 106, Color3.fromRGB(45,8,8), function() speedMult=500; speedOn=true; upSt() end)
-cbtn(contents[2], "SPEED 5000x", 140, Color3.fromRGB(55,5,5), function() speedMult=5000; speedOn=true; upSt() end)
+cbtn(contents[2], "SPEED 500x", 106, Color3.fromRGB(25,25,25), function() speedMult=500; speedOn=true; upSt() end)
+cbtn(contents[2], "SPEED 5000x", 140, Color3.fromRGB(25,25,25), function() speedMult=5000; speedOn=true; upSt() end)
 
 -- HZ
 local hzBox = Instance.new("TextBox", contents[3]); hzBox.Size = UDim2.new(0.9,0,0,34); hzBox.Position = UDim2.new(0.05,0,0,4); hzBox.BackgroundColor3 = Color3.fromRGB(10,10,10); hzBox.BorderSizePixel = 0; hzBox.Text = tostring(hertz); hzBox.TextColor3 = Color3.fromRGB(200,200,200); hzBox.TextSize = 18; hzBox.Font = Enum.Font.GothamBold; hzBox.PlaceholderText = "Enter Hz..."
@@ -218,7 +246,7 @@ hzSet.MouseButton1Click:Connect(function()
 end)
 cbtn(contents[3], "Hz " .. (hzOn and "ON" or "OFF"), 80, Color3.fromRGB(15,15,35), function() hzOn=not hzOn; upHz() end)
 cbtn(contents[3], "Copy Loader", 114, Color3.fromRGB(12,12,12), function() if setclipboard then setclipboard('loadstring(game:HttpGet("https://raw.githubusercontent.com/snqw293-eng/superpull/main/super_pull.lua"))()') end end)
-cbtn(contents[3], "Quit", 148, Color3.fromRGB(45,5,5), function() speedOn=false; pullOn=false; hzOn=false; gui:Destroy() end)
+cbtn(contents[3], "Quit", 148, Color3.fromRGB(25,25,25), function() speedOn=false; pullOn=false; hzOn=false; gui:Destroy() end)
 
 -- SCAN
 cbtn(contents[4], "Rescan Character", 4, Color3.fromRGB(20,18,10), function() if plr.Character then studyChar(plr.Character); upSt() end end)
