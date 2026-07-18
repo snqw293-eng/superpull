@@ -18,8 +18,10 @@ local predInt = 10
 local curTab = 1
 local foundMove = false
 local useCFrame = true
+local clickTP = false
 local vBoost = 1000
 local moveInfo = {}
+local clickPos = Vector2.new()
 
 function studyChar(char)
     moveInfo = {}
@@ -48,10 +50,19 @@ local dragStr = 0
 local held = false
 
 UIS.InputBegan:Connect(function(i)
-    if i.UserInputType == Enum.UserInputType.MouseButton1 then held = true; lastPos = Vector2.new(mouse.X, mouse.Y); dragStr = 0 end
+    if i.UserInputType == Enum.UserInputType.MouseButton1 then held = true; clickPos = Vector2.new(mouse.X, mouse.Y); lastPos = clickPos; dragStr = 0 end
 end)
 UIS.InputEnded:Connect(function(i)
-    if i.UserInputType == Enum.UserInputType.MouseButton1 then held = false; dragStr = 0 end
+    if i.UserInputType == Enum.UserInputType.MouseButton1 then
+        held = false; dragStr = 0
+        if clickTP and (Vector2.new(mouse.X, mouse.Y) - clickPos).Magnitude < 10 then
+            local p = mouse.Hit
+            if p then
+                local hrp = plr.Character and plr.Character:FindFirstChild("HumanoidRootPart")
+                if hrp then hrp.CFrame = CFrame.new(p.p + Vector3.new(0, 3, 0)) end
+            end
+        end
+    end
 end)
 
 mouse.Move:Connect(function()
@@ -214,7 +225,7 @@ local st = Instance.new("TextLabel", bg); st.Size = UDim2.new(1,-10,0,24); st.Po
 
 function upSt()
     local m = #moveInfo > 0 and table.concat(moveInfo, ",") or "Unknown"
-    st.Text = "Hook:" .. hookMethod .. " Pull:" .. pullMult .. "x Speed:" .. speedMult .. "x " .. hertz .. "Hz Pred:" .. (predOn and predInt .. "x" or "OFF") .. "\nMove:" .. m .. " CFrame:" .. tostring(useCFrame)
+    st.Text = "Hook:" .. hookMethod .. " Pull:" .. pullMult .. "x Speed:" .. speedMult .. "x " .. hertz .. "Hz Pred:" .. (predOn and predInt .. "x" or "OFF") .. "\nMove:" .. m .. " CFrame:" .. tostring(useCFrame) .. " ClickTP:" .. (clickTP and "ON" or "OFF")
 end
 
 local tabBtns = {}; local contents = {}
@@ -244,6 +255,7 @@ cbtn(contents[1], "Pull /10", 72, Color3.fromRGB(15,15,15), function() pullMult=
 cbtn(contents[1], "CFrame " .. (useCFrame and "ON" or "OFF"), 106, Color3.fromRGB(20,20,20), function() useCFrame=not useCFrame; upSt() end)
 cbtn(contents[1], "Inject Hook", 140, Color3.fromRGB(20,20,20), doHook)
 cbtn(contents[1], "Reattach Force", 174, Color3.fromRGB(18,18,18), attachForce)
+cbtn(contents[1], "Click TP " .. (clickTP and "ON" or "OFF"), 208, Color3.fromRGB(18,18,18), function() clickTP=not clickTP; upSt() end)
 
 -- SPEED
 cbtn(contents[2], "Speed " .. (speedOn and "ON" or "OFF"), 4, Color3.fromRGB(15,35,15), function() speedOn=not speedOn; upSt() end)
