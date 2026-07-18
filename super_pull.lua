@@ -64,7 +64,7 @@ UIS.InputEnded:Connect(function(i)
     if i.UserInputType == Enum.UserInputType.MouseButton1 then
         held = false; dragStr = 0
         if clickTP and (Vector2.new(mouse.X, mouse.Y) - clickPos).Magnitude < 10 then
-            local now = tick()
+            local now = time()
             local p = mouse.Hit
             if p then
                 if now - lastClickTime < dblClickDelay then
