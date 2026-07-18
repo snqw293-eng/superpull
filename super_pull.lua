@@ -163,10 +163,15 @@ footer.Font = Enum.Font.Gotham
 footer.Parent = bg
 
 -- Copy loadstring
-makeBtn("Copy Loader", 200, 310, Color3.fromRGB(40, 40, 40), function()
+makeBtn("Copy Loader", 200, 150, Color3.fromRGB(40, 40, 40), function()
     if setclipboard then
         setclipboard('loadstring(game:HttpGet("https://raw.githubusercontent.com/snqw293-eng/superpull/main/super_pull.lua"))()')
     end
+end)
+
+-- Quit
+makeBtn("Quit", 200, 150, Color3.fromRGB(120, 0, 0), function()
+    pullOn = false; speedOn = false; hzOn = false; gui:Destroy()
 end)
 
 print("snqw .0gh — loaded")
